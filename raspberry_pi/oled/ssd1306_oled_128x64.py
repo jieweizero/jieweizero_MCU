@@ -7,17 +7,8 @@ from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 
-
-
 serial = i2c(port=1, address=0x3C)
 device = ssd1306(serial, width=128, height=64)
-
-# 打开GIF文件并为每一帧创建Image对象
-frames = []
-with Image.open("./movie_new.gif") as img:
-    for frame in ImageSequence.Iterator(img):
-        frames.append(frame.convert("1").resize((128,64)))
-
 
 # Return CPU temperature as a character string
 def getCPUtemperature():
@@ -55,19 +46,24 @@ def getDiskSpace():
         if i==2:
             return(line.split()[1:5])
 
-
-
-def draw_text(text,width,height,fontsize):
+def draw_text(text, width, height, fontsize):
     font = ImageFont.truetype("arial.ttf", fontsize)
     with canvas(device) as draw:
         draw.rectangle(device.bounding_box, outline="white", fill="black")
-        w, h = draw.textsize(text, font)
+        # Calculate the width of the text using textlength() instead of textsize()
+        w = font.getlength(text)
+        # Calculate the height of the text by subtracting the font descent from the font ascent
+        ascent, descent = font.getmetrics()
+        h = ascent - descent
+        # Calculate the position of the text
         x = (width - w) // 2
         y = (height - h) // 2
-        draw.text((x, y), text, font=font, fill="white")
+        # Draw the text using the new width and height values
+        draw.text((10, 1), text, font=font, fill="white")
 
- # 逐一显示每个图像
+
 def image_gif():
+    # Display each image with an idea
     for frame in frames:
         device.display(frame)
         time.sleep(0.01)
@@ -76,7 +72,7 @@ def computer_resources(flag):
     while not flag.is_set():
         # CPU informatiom
         CPU_use = getCPUuse()
-        CPU_temp = getCPUtemperature()
+        CPU_tmp = getCPUtemperature()
         # RAM information
         # Output is in kb, here I convert it in Mb for readability
         RAM_stats = getRAMinfo()
@@ -89,30 +85,34 @@ def computer_resources(flag):
         DISK_total = DISK_stats[0]
         DISK_used = DISK_stats[1]
         DISK_perc = DISK_stats[3]
-        status_text = "CPU_use:"+CPU_use+"\n"+"RAM_used"+str(RAM_used)+"\n"
-
-        #draw_text("CPU_use:"+CPU_use+"\n", device.width, device.height, 20)
-        #draw_text("CPU_temp:"+CPU_temp+"\n", device.width, device.height, 20)
-        draw_text("RAM_s:"+"_".join(RAM_stats)+"|t:"+str(RAM_total)+"|u:"+str(RAM_used) +"|f:"+str(RAM_free)+"\n", device.width, device.height, 20)
-        #draw_text("DISK_s:"+DISK_stats+"|t:"+DISK_total+"|u:"+DISK_used+"|p:"+DISK_perc+"\n", device.width, device.height, 20)
-
-
-
+        status_text = "CPU_use:  "+CPU_use+"\nCPU_tmp:  "+CPU_tmp+"\nRAM_used:  "+str(RAM_used)+"\nDISK_used:  "+DISK_used
+        #Display Calculator System Resources
+        draw_text(status_text, device.width, device.height, 12)
 
 if __name__ == '__main__':
+    # Open a GIF file and create an Image object for each frame
+    frames = []
+    with Image.open("./bad_apple.gif") as img:
+        for frame in ImageSequence.Iterator(img):
+            frames.append(frame.convert("1").resize((128,64)))
+    # Create a threading.Event() object for synchronization
     flag = threading.Event()
+    # Create a thread to compute system resources usage
     t = threading.Thread(target=computer_resources,args=(flag,))
     while True:
-        draw_text("www.spotpear.cn\n"+"www.spotpear.com\n", device.width, device.height, 20)
+        # Show some text and wait for 2 seconds
+        draw_text("        Spotpear\nwww.spotpear.cn\nwww.spotpear.com\n", device.width, device.height, 12)
         time.sleep(2)
-        #draw_text("TEST:"+getCPUuse(), device.width, device.height, 20)
+        #Start the thread to compute system resources usage,wait for 5 seconds
         t.start()
         time.sleep(5)
+        # Set the flag to stop the thread
         flag.set()
+        # Wait for the thread to terminate
         t.join()
+        # Clear the flag and create a new thread for next loop
         flag.clear()
         t = threading.Thread(target=computer_resources,args=(flag,))
-       # draw_text("T:"+DISK_stats[0], device.width, device.height, 20)
         time.sleep(2)
+        # Display Bad Apple animation as GIF images
         image_gif()
-
